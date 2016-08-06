@@ -32,3 +32,6 @@
 *.dSYM/
 *.su
 
+# Vi swap files
+*.swp
+*.img

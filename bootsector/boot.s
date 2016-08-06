@@ -6,16 +6,17 @@
 ;
 
 	BITS 16				; 16 bits real mode
+	DATASEG equ 0x07C0		; BIOS load this to 0x7C00,
+					; so set DS=0x07C0 to make label msg1 works
 	global _start
 
 _start:
 	cli				; disable interrupt
-	jmp word 0x07c0:.go		; jump to 0x07c0 segment
 .go:
-	mov ax, cs			; get current code segment
+	mov ax, DATASEG			; get current code segment
 	mov ds, ax
-	mov ss, ax
-	mov sp, 0xFF
+	mov ss, ax			; set stack to 0x07C0:0xFFFF
+	mov sp, 0xFFFF
 
 	mov si, msg1
 	call print
