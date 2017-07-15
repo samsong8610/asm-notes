@@ -36,3 +36,5 @@
 # Vi swap files
 *.swp
 *.img
+
+*/image
