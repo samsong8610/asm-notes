@@ -18,6 +18,8 @@ startup:
     mov $0x9ffff, %esp
     call setup_idt
     call setup_gdt
+    jmp $0x08, $gdt_ok
+gdt_ok:
     /* reset all segments after changing gdt */
     xor %eax, %eax
     mov $0x10, %ax
@@ -32,34 +34,43 @@ startup:
     lea sys_put_char, %edx
     mov $0x00080000, %eax           /* select kernel code segment */
     mov %dx, %ax                    /* ax: handler address low 16 bits */
-    mov $0x8e00, %dx                /* dpl=0, interrupt gate */
-    mov $33, %ecx                   /* int 0x21: put a char(al) to the screen */
+    mov $0xee00, %dx                /* dpl=3, allow level 3 app invoke, interrupt gate */
+    mov $0x21, %ecx                 /* int 0x21: put a char(al) to the screen */
     lea idt(,%ecx,8), %edi
     mov %eax, (%edi)
     mov %edx, 4(%edi)
 
     sti                             /* enable interrupt */
 
-/*
-    mov $80, %ecx
+kernel_start:
     mov $0x9c32, %ax
-1:
     int $0x21
-    dec %ecx
-    jne 1b
-    */
+    call put_char
 
 switch:
-    /* switch to level 3 */
+    /* switch to level 3 app */
+    pushfl                          /* clear NT flag */
+    andl $0xffffbfff, (%esp)
+    popfl
+    /* load current tss */
+    mov $0x28, %ax
+    ltr %ax
+    push $0x23
+    pushl $0x8ffff
+    pushfl
+    push $0x1b
+    pushl $main
+    iret
+    /*
     xor %eax, %eax
-    mov $0x20, %ax
+    mov $0x23, %ax
     mov %ax, %ds
     mov %ax, %es
     mov %ax, %fs
     mov %ax, %gs
     mov %ax, %ss
     mov $0x8ffff, %esp
-    call $0x18, $main
+    */
 
 endless:
     jmp endless
@@ -145,11 +156,21 @@ gdt:
     .quad 0                     /* null descriptor */
     .quad 0x00c09a00000000ff    /* kernel code segment, base 0x0, limit 0xff(size 1M), DPL=0 */
     .quad 0x00c09200000000ff    /* kernel data segment, base 0x0, limit 0xff(size 1M), DPL=0 */
-    .quad 0x00c09a00000000ff    /* app code segment, base 0x0, limit 0xff(size 1M), DPL=0 */
-    .quad 0x00c09200040000ff    /* app data segment, base 0x0, limit 0xff(size 1M), DPL=0 */
+    /*.quad 0x00c09a00000000ff     app code segment, base 0x0, limit 0xff(size 1M), DPL=0 */
+    /*.quad 0x00c09200000000ff     app data segment, base 0x0, limit 0xff(size 1M), DPL=0 */
+    .quad 0x00c0fa00000000ff    /* app code segment, base 0x0, limit 0xff(size 1M), DPL=3 */
+    .quad 0x00c0f200000000ff    /* app data segment, base 0x0, limit 0xff(size 1M), DPL=3 */
+    /* tss0 descriptor start */
+    .word 103                   /* tss limit 104 - 1 */
+    .word task0                 /* tss base addr 0-15 */
+    .byte 0                     /* tss base addr 16-23 */
+    .byte 0xe9                  /* present, dpl=3 */
+    .byte 0
+    .byte 0                     /* tss base addr 24-31 */
+    /* tss0 descriptor end */
 
 gdtr_value:
-    .word 8*5 - 1               /* base + limit is the address of the LAST byte, so minus 1 */
+    .word 8*6 - 1               /* base + limit is the address of the LAST byte, so minus 1 */
     .long gdt
 
     .align 8
@@ -159,6 +180,25 @@ idt:
 idtr_value:
     .word 8*34 - 1
     .long idt
+
+task0:
+    .long 0                     /* previous tss */
+    .long 0x7ffff               /* level 0 esp */
+    .word 0x10, 0               /* level 0 ss */
+    .long 0, 0, 0, 0            /* level 1,2 esp ss, not used */
+    .long 0                     /* page dir base addr register cr3, not used */
+    /* .long main, 0x200            eip, eflags, IF=1 */
+    /* .long 0, 0, 0, 0             eax, ecx, edx, ebx */
+    /* .long 0x3ff, 0, 0, 0         esp, ebp, esi, edi */
+    /* .long 0x23, 0x1b, 0x23       es, cs, ss */
+    /* .long 0x23, 0x23, 0x23       ds, fs, gs */
+    .long 0, 0                  /* eip, eflags, IF=1 */
+    .long 0, 0, 0, 0            /* eax, ecx, edx, ebx */
+    .long 0, 0, 0, 0            /* esp, ebp, esi, edi */
+    .long 0, 0, 0               /* es, cs, ss */
+    .long 0, 0, 0               /* ds, fs, gs */
+    .word 0x00, 0               /* ldt, not used */
+    .long 0                     /* clear debug, no i/o map */
 
 pos:
     .long 0                     /* current output position on screen */
