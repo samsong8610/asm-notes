@@ -4,28 +4,21 @@ NASM=nasm
 LD=ld
 OBJCOPY=objcopy
 LD-SCRIPT=-T kernel.ld
-OBJS = kernel.o main.o console.o schedule.o
-# OBJS = kernel2.o
+OBJS = kernel.o
 
 .PHONY: all run clean
 all: run
 
 %.o: %.s
 	$(AS) --32 -g -o $@ $<
-%.o: %.c
+
+main.o: main.c
 	$(CC) -m32 -c -g -O0 -nostdinc -nostdlib -o $@ $<
-
-main.o: main.c console.h schedule.h
-	$(CC) -m32 -c -g -O0 -nostdinc -nostdlib -o $@ $<
-
-console.o: console.c console.h
-
-schedule.o: schedule.c schedule.h
 
 bootsect.bin: bootsect.s
 	$(NASM) -f bin $< -o $@
 
-kernel.elf: $(OBJS)
+kernel.elf: kernel.o main.o
 	$(LD) $(LD-SCRIPT) -nostdinc -o $@ $^
 
 kernel.bin: kernel.elf
