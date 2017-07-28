@@ -47,7 +47,7 @@ struct task_t {
     struct tss_t *t_tss;
     struct descriptor_t t_ldt[3];   /* local descriptor table, 0:null,1:code,2:data */
     enum task_state t_state;        /* task state */
-    int t_stack[TASK_STACK_SIZE];   /* task stack */
+    int t_stack[TASK_STACK_SIZE];   /* task kernel stack */
 };
 
 /**

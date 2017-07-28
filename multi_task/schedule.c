@@ -76,19 +76,19 @@ int register_task(void (*fn)(void)) {
     /* init tss */
     tsses[tasks_count].link = 0;
     tsses[tasks_count].esp0 = &tasks[tasks_count].t_stack[TASK_STACK_SIZE - 1];
-    tsses[tasks_count].ss0 = 0x10;
+    tsses[tasks_count].ss0 = 0x10;                  /* kernel data segment */
     tsses[tasks_count].esp1 = 0;
     tsses[tasks_count].ss1 = 0;
     tsses[tasks_count].esp2 = 0;
     tsses[tasks_count].ss2 = 0;
     tsses[tasks_count].cr3 = 0;
     tsses[tasks_count].eip = (unsigned long)fn;
-    tsses[tasks_count].eflags = 0x200;
+    tsses[tasks_count].eflags = 0x200;              /* set IF */
     tsses[tasks_count].eax = 0;
     tsses[tasks_count].ecx = 0;
     tsses[tasks_count].edx = 0;
     tsses[tasks_count].ebx = 0;
-    tsses[tasks_count].esp = 0x9ffff - (tasks_count << 16);
+    tsses[tasks_count].esp = 0x9ffff - (tasks_count << 16); /* task user stack */
     tsses[tasks_count].ebp = 0;
     tsses[tasks_count].esi = 0;
     tsses[tasks_count].edi = 0;
@@ -98,8 +98,8 @@ int register_task(void (*fn)(void)) {
     tsses[tasks_count].ss = 0x17;
     tsses[tasks_count].fs = 0x17;
     tsses[tasks_count].gs = 0x17;
-    tsses[tasks_count].ldt = _LDT(tasks_count);
-    tsses[tasks_count].trace_bitmap = 0x8000000;
+    tsses[tasks_count].ldt = _LDT(tasks_count);     /* task LDT */
+    tsses[tasks_count].trace_bitmap = 0x0000000;
     set_tss_gate(tasks_count, (long)&tsses[tasks_count], 3, 103);
 
     /* init task */
